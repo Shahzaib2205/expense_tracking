@@ -1,30 +1,72 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:expence_tracking/main.dart';
+import 'package:expence_tracking/app/app.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  Future<void> pumpToAuthLanding(WidgetTester tester) async {
+    await tester.pump(const Duration(milliseconds: 1800));
+    await tester.pumpAndSettle();
+  }
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('shows launch splash then auth landing', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ExpenseTracingApp());
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('FinWise'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await pumpToAuthLanding(tester);
+
+    expect(find.text('Forgot Password?'), findsOneWidget);
+    expect(find.text('Log In'), findsOneWidget);
+  });
+
+  testWidgets('navigates login to signup', (WidgetTester tester) async {
+    await tester.pumpWidget(const ExpenseTracingApp());
+    await pumpToAuthLanding(tester);
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Log In'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Welcome'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Sign Up').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create Account'), findsOneWidget);
+  });
+
+  testWidgets('navigates to forgot password from auth landing', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ExpenseTracingApp());
+    await pumpToAuthLanding(tester);
+
+    await tester.tap(find.text('Forgot Password?'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reset Password?'), findsOneWidget);
+    expect(find.text('Next Step'), findsOneWidget);
+  });
+
+  testWidgets('logs in and opens dashboard', (WidgetTester tester) async {
+    await tester.pumpWidget(const ExpenseTracingApp());
+    await pumpToAuthLanding(tester);
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Log In'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'demo@finwise.app',
+    );
+    await tester.enterText(find.byType(TextFormField).at(1), '12345678');
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Log In').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('FinWise Dashboard'), findsOneWidget);
+    expect(find.text('Current Balance'), findsOneWidget);
   });
 }
