@@ -5,46 +5,39 @@ import 'package:expence_tracking/models/expense_item.dart';
 class DashboardProvider extends ChangeNotifier {
   final List<ExpenseItem> _items = [
     ExpenseItem(
-      title: 'Monthly Salary',
-      category: 'Income',
-      date: DateTime(2026, 3, 1),
-      amount: 2800,
+      title: 'Salary',
+      category: 'Monthly',
+      date: DateTime(2026, 4, 30, 18, 27),
+      amount: 4000,
       type: EntryType.income,
     ),
     ExpenseItem(
       title: 'Groceries',
-      category: 'Food',
-      date: DateTime(2026, 3, 4),
-      amount: 85,
+      category: 'Pantry',
+      date: DateTime(2026, 4, 24, 17, 0),
+      amount: 100,
       type: EntryType.expense,
     ),
     ExpenseItem(
-      title: 'Internet Bill',
-      category: 'Utilities',
-      date: DateTime(2026, 3, 3),
-      amount: 45,
+      title: 'Rent',
+      category: 'Rent',
+      date: DateTime(2026, 4, 15, 8, 30),
+      amount: 674.40,
       type: EntryType.expense,
     ),
     ExpenseItem(
-      title: 'Taxi Ride',
-      category: 'Transport',
-      date: DateTime(2026, 3, 2),
-      amount: 20,
+      title: 'Utilities',
+      category: 'Bills',
+      date: DateTime(2026, 4, 2, 9, 15),
+      amount: 413,
       type: EntryType.expense,
     ),
     ExpenseItem(
-      title: 'Freelance Work',
+      title: 'Freelance Retainer',
       category: 'Income',
-      date: DateTime(2026, 3, 5),
-      amount: 420,
+      date: DateTime(2026, 4, 1, 12, 0),
+      amount: 4970.40,
       type: EntryType.income,
-    ),
-    ExpenseItem(
-      title: 'Streaming Plan',
-      category: 'Entertainment',
-      date: DateTime(2026, 3, 5),
-      amount: 16,
-      type: EntryType.expense,
     ),
   ];
 
@@ -53,7 +46,7 @@ class DashboardProvider extends ChangeNotifier {
   List<ExpenseItem> get recentTransactions {
     final copy = [..._items];
     copy.sort((a, b) => b.date.compareTo(a.date));
-    return copy.take(5).toList();
+    return copy.take(3).toList();
   }
 
   double get totalIncome {
@@ -69,6 +62,14 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   double get balance => totalIncome - totalExpense;
+
+  double get budgetCap => 20000;
+
+  double get budgetUsedRatio => 0.30;
+
+  double get revenueLastWeek => 4000;
+
+  double get foodLastWeek => 100;
 
   Map<String, double> get categoryTotals {
     final map = <String, double>{};
