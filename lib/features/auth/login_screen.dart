@@ -19,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -39,32 +40,51 @@ class _LoginScreenState extends State<LoginScreen> {
     if (requiredResult != null) {
       return requiredResult;
     }
-    if (!value!.contains('@')) {
-      return 'Enter a valid email';
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    if (!emailRegex.hasMatch(value!)) {
+      return 'Enter a valid email address';
     }
     return null;
   }
 
-  void _onLoginPressed() {
+  Future<void> _onLoginPressed() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+    });
+
     final authProvider = context.read<AuthProvider>();
-    authProvider.login(
+    
+    final success = await authProvider.login(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
     );
 
-    if (!authProvider.isAuthenticated) {
-      return;
-    }
+    setState(() {
+      _isLoading = false;
+    });
 
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.dashboard,
-      (route) => false,
-    );
+    if (success) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.dashboard,
+        (route) => false,
+      );
+    } else {
+      // Show error message from backend
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.lastErrorMessage ?? 'Login failed'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   @override
@@ -98,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       RoundedInputField(
-                        label: 'Username Or Email',
+                        label: 'Email Address',
                         hintText: 'example@example.com',
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -114,8 +134,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 22),
                       PillButton(
-                        label: 'Log In',
-                        onPressed: _onLoginPressed,
+                        label: _isLoading ? 'Logging in...' : 'Log In',
+                        onPressed: _isLoading ? null : _onLoginPressed,
                         width: 170,
                       ),
                       const SizedBox(height: 8),

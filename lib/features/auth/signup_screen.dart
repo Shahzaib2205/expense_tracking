@@ -22,6 +22,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _dateController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -46,8 +47,22 @@ class _SignupScreenState extends State<SignupScreen> {
     if (requiredResult != null) {
       return requiredResult;
     }
-    if (!value!.contains('@')) {
-      return 'Enter a valid email';
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    if (!emailRegex.hasMatch(value!)) {
+      return 'Enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _passwordValidator(String? value) {
+    final requiredResult = _requiredValidator(value);
+    if (requiredResult != null) {
+      return requiredResult;
+    }
+    if (value!.length < 6) {
+      return 'Password must be at least 6 characters';
     }
     return null;
   }
@@ -63,29 +78,46 @@ class _SignupScreenState extends State<SignupScreen> {
     return null;
   }
 
-  void _onSignupPressed() {
+  Future<void> _onSignupPressed() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+    });
+
     final authProvider = context.read<AuthProvider>();
-    authProvider.signup(
+    
+    final success = await authProvider.signup(
       fullName: _nameController.text.trim(),
       email: _emailController.text.trim(),
       mobile: _mobileController.text.trim(),
       dateOfBirth: _dateController.text.trim(),
       password: _passwordController.text.trim(),
+      confirmPassword: _confirmPasswordController.text.trim(),
     );
 
-    if (!authProvider.isAuthenticated) {
-      return;
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (success) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.dashboard,
+        (route) => false,
+      );
+    } else {
+      // Show error message from backend
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.lastErrorMessage ?? 'Signup failed'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
-
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.dashboard,
-      (route) => false,
-    );
   }
 
   @override
@@ -120,7 +152,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     children: [
                       RoundedInputField(
                         label: 'Full Name',
-                        hintText: 'example@example.com',
+                        hintText: 'John Doe',
                         controller: _nameController,
                         validator: _requiredValidator,
                       ),
@@ -135,7 +167,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(height: 10),
                       RoundedInputField(
                         label: 'Mobile Number',
-                        hintText: '+ 12 3456 789',
+                        hintText: '+92 300 1234567',
                         controller: _mobileController,
                         keyboardType: TextInputType.phone,
                         validator: _requiredValidator,
@@ -153,7 +185,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         hintText: '********',
                         controller: _passwordController,
                         obscurable: true,
-                        validator: _requiredValidator,
+                        validator: _passwordValidator,
                       ),
                       const SizedBox(height: 10),
                       RoundedInputField(
@@ -175,8 +207,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                       const SizedBox(height: 12),
                       PillButton(
-                        label: 'Sign Up',
-                        onPressed: _onSignupPressed,
+                        label: _isLoading ? 'Creating Account...' : 'Sign Up',
+                        onPressed: _isLoading ? null : _onSignupPressed,
                         width: 180,
                       ),
                       const SizedBox(height: 14),
