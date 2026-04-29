@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:expence_tracking/app/app_routes.dart';
 import 'package:expence_tracking/app/app_theme.dart';
 import 'package:expence_tracking/features/auth/auth_provider.dart';
+import 'package:expence_tracking/backend/auth_service.dart';
 import 'package:expence_tracking/features/dashboard/dashboard_provider.dart';
 
 class ExpenseTracingApp extends StatelessWidget {
@@ -14,9 +15,7 @@ class ExpenseTracingApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
-        ChangeNotifierProvider<DashboardProvider>(
-          create: (_) => DashboardProvider(),
-        ),
+        ChangeNotifierProvider<DashboardProvider>(create: (_) => DashboardProvider()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

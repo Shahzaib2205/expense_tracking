@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:expence_tracking/app/app_theme.dart';
 import 'package:expence_tracking/features/dashboard/dashboard_provider.dart';
 import 'package:expence_tracking/models/expense_item.dart';
+import 'package:expence_tracking/models/salary_record.dart';
 
 enum _AnalysisPeriod { daily, weekly, monthly, yearly }
 
@@ -63,6 +64,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _categoryFlowMode = _CategoryFlowMode.overview;
       }
     });
+  }
+
+  void _showAddSalaryDialog(DashboardProvider dashboard) {
+    final amountController = TextEditingController();
+    final notesController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add Salary'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountController,
+                decoration: const InputDecoration(labelText: 'Salary Amount', hintText: '0.00'),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(labelText: 'Notes (optional)', hintText: 'Add notes...'),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final amount = double.tryParse(amountController.text.trim());
+              if (amount != null && amount > 0) {
+                final record = SalaryRecord(
+                  id: '',
+                  amount: amount,
+                  date: DateTime.now(),
+                  notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                );
+                dashboard.addSalary(record);
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Salary added successfully')),
+                );
+              } else {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Please enter a valid amount')),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _openCategoryList(String name) {
@@ -242,6 +302,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           },
         ),
       ),
+      floatingActionButton: _selectedNavIndex == 0
+          ? FloatingActionButton(
+              onPressed: () {
+                final dashboard = context.read<DashboardProvider>();
+                _showAddSalaryDialog(dashboard);
+              },
+              tooltip: 'Add Salary',
+              backgroundColor: AppColors.primaryMint,
+              child: const Icon(Icons.add),
+            )
+          : null,
       bottomNavigationBar: SafeArea(
         top: false,
         child: Padding(

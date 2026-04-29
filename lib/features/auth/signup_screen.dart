@@ -98,6 +98,10 @@ class _SignupScreenState extends State<SignupScreen> {
       confirmPassword: _confirmPasswordController.text.trim(),
     );
 
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _isLoading = false;
     });
