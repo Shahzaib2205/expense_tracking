@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:expence_tracking/app/app_routes.dart';
 import 'package:expence_tracking/app/app_theme.dart';
+import 'package:expence_tracking/features/auth/auth_provider.dart';
 import 'package:expence_tracking/features/dashboard/dashboard_provider.dart';
 import 'package:expence_tracking/models/expense_item.dart';
 import 'package:expence_tracking/models/salary_record.dart';
@@ -2098,6 +2100,31 @@ class _DashboardProfileTabState extends State<_DashboardProfileTab> {
     });
   }
 
+  void _handleLogout() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              final auth = context.read<AuthProvider>();
+              auth.logout();
+              Navigator.of(context).pushReplacementNamed(AppRoutes.authLanding);
+            },
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = switch (_mode) {
@@ -2170,6 +2197,7 @@ class _DashboardProfileTabState extends State<_DashboardProfileTab> {
                   onMyAccountTap: () => _open(_ProfileFlowMode.account),
                   onSecurityTap: () => _open(_ProfileFlowMode.security),
                   onTermsTap: () => _open(_ProfileFlowMode.terms),
+                  onLogoutTap: _handleLogout,
                 ),
                 _ProfileFlowMode.account => _ProfileAccountContent(
                   onEditTap: () => _open(_ProfileFlowMode.edit),
@@ -2204,11 +2232,13 @@ class _ProfileMenuContent extends StatelessWidget {
     required this.onMyAccountTap,
     required this.onSecurityTap,
     required this.onTermsTap,
+    required this.onLogoutTap,
   });
 
   final VoidCallback onMyAccountTap;
   final VoidCallback onSecurityTap;
   final VoidCallback onTermsTap;
+  final VoidCallback onLogoutTap;
 
   @override
   Widget build(BuildContext context) {
@@ -2271,10 +2301,11 @@ class _ProfileMenuContent extends StatelessWidget {
           icon: Icons.group_add_outlined,
           label: 'Invite Friends',
         ),
-        const _ProfileMenuTile(
+        _ProfileMenuTile(
           keyName: 'profile-tile-logout',
           icon: Icons.logout_rounded,
           label: 'Log Out',
+          onTap: onLogoutTap,
         ),
       ],
     );
