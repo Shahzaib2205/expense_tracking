@@ -5,6 +5,7 @@ import 'package:expence_tracking/app/app_theme.dart';
 import 'package:expence_tracking/features/dashboard/dashboard_provider.dart';
 import 'package:expence_tracking/models/expense_item.dart';
 import 'package:expence_tracking/models/salary_record.dart';
+import 'package:expence_tracking/shared/currency_utils.dart';
 
 enum _AnalysisPeriod { daily, weekly, monthly, yearly }
 
@@ -69,6 +70,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _showAddSalaryDialog(DashboardProvider dashboard) {
     final amountController = TextEditingController();
     final notesController = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context, rootNavigator: true);
     
     showDialog(
       context: context,
@@ -98,7 +101,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final amount = double.tryParse(amountController.text.trim());
               if (amount != null && amount > 0) {
                 final record = SalaryRecord(
@@ -107,11 +110,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   date: DateTime.now(),
                   notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
                 );
-                dashboard.addSalary(record);
-                Navigator.pop(dialogContext);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Salary added successfully')),
-                );
+                try {
+                  await dashboard.addSalary(record);
+                  if (!mounted) {
+                    return;
+                  }
+                  navigator.pop();
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Salary added successfully')),
+                  );
+                } catch (e) {
+                  if (!mounted) {
+                    return;
+                  }
+                  final errorText = e.toString();
+                  if (errorText.contains('permission-denied')) {
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Firestore permission denied. Update Firestore Rules to allow users/{uid}/salaries writes for the signed-in user.'),
+                      ),
+                    );
+                    return;
+                  }
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Failed to add salary: $e')),
+                  );
+                }
               } else {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
                   const SnackBar(content: Text('Please enter a valid amount')),
@@ -177,14 +201,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String _formatCurrency(double value, {bool showSign = false}) {
-    final absolute = value.abs();
-    final parts = absolute.toStringAsFixed(2).split('.');
-    final whole = parts[0].replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (match) => ',',
-    );
-    final prefix = showSign && value < 0 ? '-\$' : '\$';
-    return '$prefix$whole.${parts[1]}';
+    // Format currency in PKR (Pakistani Rupees)
+    final formatted = CurrencyUtils.formatCurrency(value.abs());
+    if (showSign && value < 0) {
+      return '-$formatted';
+    }
+    return formatted;
   }
 
   String _timeDateLabel(DateTime date) {

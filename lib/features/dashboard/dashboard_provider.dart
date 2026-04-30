@@ -6,10 +6,13 @@ import '../../models/expense_item.dart';
 import '../../models/salary_record.dart';
 import '../../services/expense_service.dart';
 import '../../services/salary_service.dart';
+import '../../services/realtime_db_service.dart';
+import '../../shared/currency_utils.dart';
 
 class DashboardProvider extends ChangeNotifier {
   final SalaryService _salaryService = SalaryService();
   final ExpenseService _expenseService = ExpenseService();
+  final RealtimeDbService _realtimeDb = RealtimeDbService();
 
   final List<SalaryRecord> _salaries = [];
   final List<ExpenseItem> _expenses = [];
@@ -23,6 +26,8 @@ class DashboardProvider extends ChangeNotifier {
       return;
     }
 
+    print('🔄 DashboardProvider.setUser called with userId: $userId');
+
     _userId = userId;
     _salarySub?.cancel();
     _expenseSub?.cancel();
@@ -30,23 +35,38 @@ class DashboardProvider extends ChangeNotifier {
     _expenses.clear();
 
     if (_userId == null) {
+      print('❌ User ID is null, clearing data');
       notifyListeners();
       return;
     }
 
-    _salarySub = _salaryService.streamSalaries(userId: _userId!).listen((list) {
-      _salaries
-        ..clear()
-        ..addAll(list);
-      notifyListeners();
-    });
+    print('✅ Subscribing to salary stream for user: $_userId');
+    _salarySub = _salaryService.streamSalaries(userId: _userId!).listen(
+      (list) {
+        print('💰 Received ${list.length} salaries');
+        _salaries
+          ..clear()
+          ..addAll(list);
+        notifyListeners();
+      },
+      onError: (error) {
+        print('❌ Error in salary stream: $error');
+      },
+    );
 
-    _expenseSub = _expenseService.streamExpenses(userId: _userId!).listen((list) {
-      _expenses
-        ..clear()
-        ..addAll(list);
-      notifyListeners();
-    });
+    print('✅ Subscribing to expense stream for user: $_userId');
+    _expenseSub = _expenseService.streamExpenses(userId: _userId!).listen(
+      (list) {
+        print('💳 Received ${list.length} expenses');
+        _expenses
+          ..clear()
+          ..addAll(list);
+        notifyListeners();
+      },
+      onError: (error) {
+        print('❌ Error in expense stream: $error');
+      },
+    );
   }
 
   List<SalaryRecord> get salaries => List.unmodifiable(_salaries);
@@ -103,6 +123,8 @@ class DashboardProvider extends ChangeNotifier {
 
   double get balance => totalIncome - totalExpense;
 
+  String get formattedBalance => CurrencyUtils.formatCurrency(balance);
+
   double get budgetCap => 20000;
 
   double get budgetUsedRatio => totalExpense / (budgetCap == 0 ? 1 : budgetCap);
@@ -143,14 +165,21 @@ class DashboardProvider extends ChangeNotifier {
 
   Future<void> addSalary(SalaryRecord record) async {
     if (_userId == null) {
-      return;
+      throw StateError('No authenticated user available for salary write');
     }
+    // Add salary record to Firestore
     await _salaryService.addSalary(userId: _userId!, record: record);
+    // Atomically increment the user's balance in Realtime Database
+    try {
+      await _realtimeDb.incrementBalance(userId: _userId!, delta: record.amount);
+    } catch (_) {
+      // If realtime update fails, we don't want to crash the UI; log or handle as needed.
+    }
   }
 
   Future<void> addExpense(ExpenseItem record) async {
     if (_userId == null) {
-      return;
+      throw StateError('No authenticated user available for expense write');
     }
     await _expenseService.addExpense(userId: _userId!, record: record);
   }

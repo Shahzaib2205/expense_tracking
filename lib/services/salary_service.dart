@@ -9,37 +9,85 @@ class SalaryService {
   }
 
   Future<void> addSalary({required String userId, required SalaryRecord record}) async {
-    final col = _userSalariesCollection(userId);
-    if (record.id.isEmpty) {
-      await col.add(record.toMap());
-    } else {
-      await col.doc(record.id).set(record.toMap());
+    try {
+      final col = _userSalariesCollection(userId);
+      if (record.id.isEmpty) {
+        await col.add(record.toMap());
+      } else {
+        await col.doc(record.id).set(record.toMap());
+      }
+    } catch (e) {
+      print('Error adding salary: $e');
+      rethrow;
     }
   }
 
   Stream<List<SalaryRecord>> streamSalaries({required String userId}) {
-    final col = _userSalariesCollection(userId);
-    return col.orderBy('date', descending: true).snapshots().map((snap) {
-      return snap.docs.map((d) => SalaryRecord.fromDoc(d)).toList();
-    });
+    try {
+      final col = _userSalariesCollection(userId);
+      return col
+          .orderBy('date', descending: true)
+          .snapshots()
+          .map<List<SalaryRecord>>((snap) {
+            try {
+              return snap.docs.map((d) => SalaryRecord.fromDoc(d)).toList();
+            } catch (e) {
+              print('Error mapping salary documents: $e');
+              return <SalaryRecord>[];
+            }
+          })
+          .handleError((e) {
+            print('Error in streamSalaries: $e');
+          })
+          .cast<List<SalaryRecord>>();
+    } catch (e) {
+      print('Error creating salaries stream: $e');
+      // Return a stream that emits an empty list
+      return Stream.value([]);
+    }
   }
 
   Future<void> deleteSalary({required String userId, required String salaryId}) async {
-    await _userSalariesCollection(userId).doc(salaryId).delete();
+    try {
+      await _userSalariesCollection(userId).doc(salaryId).delete();
+    } catch (e) {
+      print('Error deleting salary: $e');
+      rethrow;
+    }
   }
 
   Stream<double> streamMonthlyTotal({required String userId, required DateTime month}) {
-    final start = DateTime(month.year, month.month, 1);
-    final end = DateTime(month.year, month.month + 1, 1);
-    final col = _userSalariesCollection(userId);
+    try {
+      final start = DateTime(month.year, month.month, 1);
+      final end = DateTime(month.year, month.month + 1, 1);
+      final col = _userSalariesCollection(userId);
 
-    return col.where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start), isLessThan: Timestamp.fromDate(end)).snapshots().map((snap) {
-      double total = 0;
-      for (final d in snap.docs) {
-        final data = d.data();
-        total += (data['amount'] as num).toDouble();
-      }
-      return total;
-    });
+      return col
+          .where('date',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(start),
+              isLessThan: Timestamp.fromDate(end))
+          .snapshots()
+          .map<double>((snap) {
+            try {
+              double total = 0;
+              for (final d in snap.docs) {
+                final data = d.data();
+                total += (data['amount'] as num).toDouble();
+              }
+              return total;
+            } catch (e) {
+              print('Error calculating monthly total: $e');
+              return 0.0;
+            }
+          })
+          .handleError((e) {
+            print('Error in streamMonthlyTotal: $e');
+          })
+          .cast<double>();
+    } catch (e) {
+      print('Error creating monthly total stream: $e');
+      // Return a stream that emits 0.0
+      return Stream.value(0.0);
+    }
   }
 }

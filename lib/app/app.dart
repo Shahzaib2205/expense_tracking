@@ -18,7 +18,11 @@ class ExpenseTracingApp extends StatelessWidget {
       ],
       child: Consumer2<AuthProvider, DashboardProvider>(
         builder: (context, auth, dashboard, _) {
-          dashboard.setUser(auth.currentUserId);
+          // Only set user when the userId has actually changed
+          // This ensures the dashboard subscribes to the correct user's data
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            dashboard.setUser(auth.currentUserId);
+          });
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'FinWise',
