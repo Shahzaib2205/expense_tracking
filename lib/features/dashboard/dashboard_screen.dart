@@ -421,10 +421,16 @@ class _DashboardHomeTabState extends State<_DashboardHomeTab> {
     final now = DateTime.now();
     switch (_selectedHomePeriod) {
       case _AnalysisPeriod.daily:
-        transactions = widget.dashboard.transactionsForDay(now);
+        transactions = widget.dashboard
+            .transactionsForDay(now)
+            .where((t) => t.type == EntryType.expense)
+            .toList();
         break;
       case _AnalysisPeriod.weekly:
-        transactions = widget.dashboard.transactionsForWeek(now);
+        transactions = widget.dashboard
+            .transactionsForWeek(now)
+            .where((t) => t.type == EntryType.expense)
+            .toList();
         break;
       case _AnalysisPeriod.monthly:
         transactions = widget.dashboard.transactionsForMonth(now);
