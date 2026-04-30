@@ -1766,7 +1766,19 @@ class _CategoryAddExpenseContentState extends State<_CategoryAddExpenseContent> 
   late final TextEditingController _titleController;
   late final TextEditingController _amountController;
   late final TextEditingController _notesController;
-  late final DateTime _selectedDate;
+  late DateTime _selectedDate;
+  late String _selectedCategory;
+
+  static const List<String> _allCategories = [
+    'Food',
+    'Transport',
+    'Medicine',
+    'Groceries',
+    'Rent',
+    'Gifts',
+    'Snacks',
+    'Others',
+  ];
 
   @override
   void initState() {
@@ -1775,6 +1787,7 @@ class _CategoryAddExpenseContentState extends State<_CategoryAddExpenseContent> 
     _amountController = TextEditingController(text: '15.32');
     _notesController = TextEditingController();
     _selectedDate = DateTime.now();
+    _selectedCategory = widget.selectedCategory;
   }
 
   @override
@@ -1783,6 +1796,45 @@ class _CategoryAddExpenseContentState extends State<_CategoryAddExpenseContent> 
     _amountController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+    }
+  }
+
+  void _selectCategory() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Select Category'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _allCategories.length,
+            itemBuilder: (context, index) {
+              final cat = _allCategories[index];
+              return ListTile(
+                title: Text(cat),
+                trailing: _selectedCategory == cat ? const Icon(Icons.check) : null,
+                onTap: () {
+                  setState(() => _selectedCategory = cat);
+                  Navigator.pop(dialogContext);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _save() async {
@@ -1796,7 +1848,7 @@ class _CategoryAddExpenseContentState extends State<_CategoryAddExpenseContent> 
 
     await widget.onSaveExpense(
       _titleController.text.trim().isEmpty ? widget.defaultTitle : _titleController.text.trim(),
-      widget.selectedCategory,
+      _selectedCategory,
       amount,
       _selectedDate,
       _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
@@ -1817,16 +1869,22 @@ class _CategoryAddExpenseContentState extends State<_CategoryAddExpenseContent> 
 
     return Column(
       children: [
-        _CategoryFormField(
-          label: 'Date',
-          value: dateLabel,
-          trailingIcon: Icons.calendar_month_outlined,
+        GestureDetector(
+          onTap: _selectDate,
+          child: _CategoryFormField(
+            label: 'Date',
+            value: dateLabel,
+            trailingIcon: Icons.calendar_month_outlined,
+          ),
         ),
         const SizedBox(height: 10),
-        _CategoryFormField(
-          label: 'Category',
-          value: widget.selectedCategory,
-          trailingIcon: Icons.keyboard_arrow_down_rounded,
+        GestureDetector(
+          onTap: _selectCategory,
+          child: _CategoryFormField(
+            label: 'Category',
+            value: _selectedCategory,
+            trailingIcon: Icons.keyboard_arrow_down_rounded,
+          ),
         ),
         const SizedBox(height: 10),
         TextField(
@@ -1908,28 +1966,31 @@ class _CategoryFormField extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.mintInput,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.mintInput,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-              if (trailingIcon != null)
-                Icon(trailingIcon, size: 15, color: AppColors.primaryMint),
-            ],
+                if (trailingIcon != null)
+                  Icon(trailingIcon, size: 15, color: AppColors.primaryMint),
+              ],
+            ),
           ),
         ),
       ],
