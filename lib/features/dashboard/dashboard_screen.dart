@@ -393,7 +393,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _DashboardHomeTab extends StatelessWidget {
+class _DashboardHomeTab extends StatefulWidget {
   const _DashboardHomeTab({
     required this.dashboard,
     required this.formatCurrency,
@@ -407,8 +407,30 @@ class _DashboardHomeTab extends StatelessWidget {
   final IconData Function(String title) transactionIcon;
 
   @override
+  State<_DashboardHomeTab> createState() => _DashboardHomeTabState();
+}
+
+class _DashboardHomeTabState extends State<_DashboardHomeTab> {
+  _AnalysisPeriod _selectedHomePeriod = _AnalysisPeriod.daily;
+
+  @override
   Widget build(BuildContext context) {
-    final transactions = dashboard.recentTransactions;
+    List<ExpenseItem> transactions;
+    final now = DateTime.now();
+    switch (_selectedHomePeriod) {
+      case _AnalysisPeriod.daily:
+        transactions = widget.dashboard.transactionsForDay(now);
+        break;
+      case _AnalysisPeriod.weekly:
+        transactions = widget.dashboard.transactionsForWeek(now);
+        break;
+      case _AnalysisPeriod.monthly:
+        transactions = widget.dashboard.transactionsForMonth(now);
+        break;
+      case _AnalysisPeriod.yearly:
+        transactions = widget.dashboard.items;
+        break;
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
@@ -461,7 +483,7 @@ class _DashboardHomeTab extends StatelessWidget {
                       Expanded(
                         child: _SummaryMetric(
                           title: 'Total Balance',
-                          value: formatCurrency(dashboard.balance),
+                          value: widget.formatCurrency(widget.dashboard.balance),
                           valueColor: Colors.white,
                         ),
                       ),
@@ -475,8 +497,8 @@ class _DashboardHomeTab extends StatelessWidget {
                           padding: const EdgeInsets.only(left: 16),
                           child: _SummaryMetric(
                             title: 'Total Expense',
-                            value: formatCurrency(
-                              -dashboard.totalExpense,
+                            value: widget.formatCurrency(
+                              -widget.dashboard.totalExpense,
                               showSign: true,
                             ),
                             valueColor: const Color(0xFF176BFF),
@@ -488,8 +510,8 @@ class _DashboardHomeTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _BudgetProgressBar(
-                    progress: dashboard.budgetUsedRatio,
-                    capLabel: formatCurrency(dashboard.budgetCap),
+                    progress: widget.dashboard.budgetUsedRatio,
+                    capLabel: widget.formatCurrency(widget.dashboard.budgetCap),
                   ),
                   const SizedBox(height: 11),
                   const Row(
@@ -530,24 +552,27 @@ class _DashboardHomeTab extends StatelessWidget {
               child: Column(
                 children: [
                   _SavingsInsightCard(
-                    revenueLabel: formatCurrency(dashboard.revenueLastWeek),
-                    foodLabel: formatCurrency(
-                      -dashboard.foodLastWeek,
+                    revenueLabel: widget.formatCurrency(widget.dashboard.revenueLastWeek),
+                    foodLabel: widget.formatCurrency(
+                      -widget.dashboard.foodLastWeek,
                       showSign: true,
                     ),
                   ),
                   const SizedBox(height: 18),
-                  const _HomePeriodSelector(),
+                  _HomePeriodSelector(
+                    selectedPeriod: _selectedHomePeriod,
+                    onPeriodChanged: (p) => setState(() => _selectedHomePeriod = p),
+                  ),
                   const SizedBox(height: 16),
                   for (final item in transactions)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _DashboardTransactionRow(
-                        icon: transactionIcon(item.title),
+                        icon: widget.transactionIcon(item.title),
                         title: item.title,
-                        dateLabel: timeDateLabel(item.date),
+                        dateLabel: widget.timeDateLabel(item.date),
                         cadence: item.category,
-                        amountLabel: formatCurrency(
+                        amountLabel: widget.formatCurrency(
                           item.type == EntryType.expense
                               ? -item.amount
                               : item.amount,
@@ -3215,7 +3240,10 @@ class _InsightMetricRow extends StatelessWidget {
 }
 
 class _HomePeriodSelector extends StatelessWidget {
-  const _HomePeriodSelector();
+  const _HomePeriodSelector({required this.selectedPeriod, required this.onPeriodChanged});
+
+  final _AnalysisPeriod selectedPeriod;
+  final ValueChanged<_AnalysisPeriod> onPeriodChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -3225,11 +3253,29 @@ class _HomePeriodSelector extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
       ),
       padding: const EdgeInsets.all(4),
-      child: const Row(
+      child: Row(
         children: [
-          Expanded(child: _HomePeriodChip(label: 'Daily')),
-          Expanded(child: _HomePeriodChip(label: 'Weekly')),
-          Expanded(child: _HomePeriodChip(label: 'Monthly', isSelected: true)),
+          Expanded(
+            child: _HomePeriodChip(
+              label: 'Daily',
+              isSelected: selectedPeriod == _AnalysisPeriod.daily,
+              onTap: () => onPeriodChanged(_AnalysisPeriod.daily),
+            ),
+          ),
+          Expanded(
+            child: _HomePeriodChip(
+              label: 'Weekly',
+              isSelected: selectedPeriod == _AnalysisPeriod.weekly,
+              onTap: () => onPeriodChanged(_AnalysisPeriod.weekly),
+            ),
+          ),
+          Expanded(
+            child: _HomePeriodChip(
+              label: 'Monthly',
+              isSelected: selectedPeriod == _AnalysisPeriod.monthly,
+              onTap: () => onPeriodChanged(_AnalysisPeriod.monthly),
+            ),
+          ),
         ],
       ),
     );
@@ -3237,26 +3283,30 @@ class _HomePeriodSelector extends StatelessWidget {
 }
 
 class _HomePeriodChip extends StatelessWidget {
-  const _HomePeriodChip({required this.label, this.isSelected = false});
+  const _HomePeriodChip({required this.label, this.isSelected = false, this.onTap});
 
   final String label;
   final bool isSelected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 38,
-      decoration: BoxDecoration(
-        color: isSelected ? AppColors.primaryMint : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Center(
-        child: Text(
-          label,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 38,
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryMint : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+            ),
           ),
         ),
       ),

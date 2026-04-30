@@ -109,6 +109,26 @@ class DashboardProvider extends ChangeNotifier {
 
   List<ExpenseItem> get recentTransactions => items.take(3).toList();
 
+  /// Transactions for a specific day (local time).
+  List<ExpenseItem> transactionsForDay(DateTime day) {
+    return items.where((it) {
+      return it.date.year == day.year && it.date.month == day.month && it.date.day == day.day;
+    }).toList();
+  }
+
+  /// Transactions for the 7-day period containing [reference]. Week starts on Sunday.
+  List<ExpenseItem> transactionsForWeek(DateTime reference) {
+    final int daysFromSunday = reference.weekday % 7; // Sunday -> 0
+    final start = DateTime(reference.year, reference.month, reference.day).subtract(Duration(days: daysFromSunday));
+    final end = start.add(const Duration(days: 7));
+    return items.where((it) => it.date.isAtSameMomentAs(start) || (it.date.isAfter(start) && it.date.isBefore(end)) || it.date.isAtSameMomentAs(end)).toList();
+  }
+
+  /// Transactions for the month of [reference].
+  List<ExpenseItem> transactionsForMonth(DateTime reference) {
+    return items.where((it) => it.date.year == reference.year && it.date.month == reference.month).toList();
+  }
+
   double get totalSalaryThisMonth {
     final now = DateTime.now();
     final monthSalaries = _salaries.where(
