@@ -1,15 +1,16 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:expence_tracking/backend/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
   
   bool _isAuthenticated = false;
+  String? _currentUserId;
   String? _currentUserEmail;
   String? _lastErrorMessage;
   late final _authSub = _authService.authStateChanges.listen((user) {
     _isAuthenticated = user != null;
+    _currentUserId = user?.uid;
     _currentUserEmail = user?.email;
     if (!_isAuthenticated) {
       _lastErrorMessage = null;
@@ -18,6 +19,7 @@ class AuthProvider extends ChangeNotifier {
   });
 
   bool get isAuthenticated => _isAuthenticated;
+  String? get currentUserId => _currentUserId;
   String? get currentUserEmail => _currentUserEmail;
   String? get lastErrorMessage => _lastErrorMessage;
 
@@ -39,9 +41,8 @@ class AuthProvider extends ChangeNotifier {
 
     if (result.success) {
       _isAuthenticated = true;
+      _currentUserId = _authService.getCurrentUserId();
       _currentUserEmail = email;
-      // Notify dashboard of new user id
-      notifyListeners();
       _lastErrorMessage = null;
       notifyListeners();
       return true;
@@ -65,6 +66,7 @@ class AuthProvider extends ChangeNotifier {
 
     if (result.success) {
       _isAuthenticated = true;
+      _currentUserId = _authService.getCurrentUserId();
       _currentUserEmail = email;
       _lastErrorMessage = null;
       notifyListeners();
@@ -78,6 +80,7 @@ class AuthProvider extends ChangeNotifier {
 
   void logout() {
     _isAuthenticated = false;
+    _currentUserId = null;
     _currentUserEmail = null;
     _lastErrorMessage = null;
     _authService.signOut();

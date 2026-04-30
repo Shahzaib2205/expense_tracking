@@ -125,6 +125,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Future<void> _handleSaveExpense(
+    String title,
+    String category,
+    double amount,
+    DateTime date,
+    String? notes,
+  ) async {
+    final dashboard = context.read<DashboardProvider>();
+    await dashboard.addExpense(
+      ExpenseItem(
+        title: title,
+        category: category,
+        date: date,
+        amount: amount,
+        type: EntryType.expense,
+        notes: notes,
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _categoryFlowMode = _CategoryFlowMode.list;
+    });
+  }
+
   void _openCategoryList(String name) {
     setState(() {
       _selectedCategoryName = name;
@@ -145,12 +173,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       } else {
         _categoryFlowMode = _CategoryFlowMode.overview;
       }
-    });
-  }
-
-  void _saveCategoryExpense() {
-    setState(() {
-      _categoryFlowMode = _CategoryFlowMode.list;
     });
   }
 
@@ -183,6 +205,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final hour = date.hour.toString().padLeft(2, '0');
     final minute = date.minute.toString().padLeft(2, '0');
     return '$hour:$minute - ${months[date.month - 1]} ${date.day}';
+  }
+
+  String _monthLabel(DateTime date) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return months[date.month - 1];
   }
 
   IconData _transactionIcon(String title) {
@@ -285,6 +325,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     });
                   },
                   formatCurrency: _formatCurrency,
+                  timeDateLabel: _timeDateLabel,
+                  monthLabel: _monthLabel,
                 ),
                 _DashboardCategoriesTab(
                   dashboard: dashboard,
@@ -293,8 +335,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onCategoryTap: _openCategoryList,
                   onAddExpenseTap: _openCategoryAddExpense,
                   onBackTap: _backFromCategoryFlow,
-                  onSaveExpense: _saveCategoryExpense,
+                  onSaveExpense: _handleSaveExpense,
                   formatCurrency: _formatCurrency,
+                  timeDateLabel: _timeDateLabel,
+                  monthLabel: _monthLabel,
                 ),
                 const _DashboardProfileTab(),
               ],
@@ -713,6 +757,7 @@ class _TransferRecord {
     required this.isExpense,
     required this.monthLabel,
     required this.icon,
+    required this.date,
   });
 
   final String title;
@@ -722,6 +767,25 @@ class _TransferRecord {
   final bool isExpense;
   final String monthLabel;
   final IconData icon;
+  final DateTime date;
+
+  factory _TransferRecord.fromItem(
+    ExpenseItem item, {
+    required String Function(DateTime date) timeDateLabel,
+    required String Function(DateTime date) monthLabel,
+    required IconData Function(String title) transactionIcon,
+  }) {
+    return _TransferRecord(
+      title: item.title,
+      timeDateLabel: timeDateLabel(item.date),
+      cadence: item.category,
+      amount: item.amount,
+      isExpense: item.type == EntryType.expense,
+      monthLabel: monthLabel(item.date),
+      icon: transactionIcon(item.title),
+      date: item.date,
+    );
+  }
 }
 
 class _DashboardTransferTab extends StatelessWidget {
@@ -730,89 +794,16 @@ class _DashboardTransferTab extends StatelessWidget {
     required this.selectedFilter,
     required this.onFilterChange,
     required this.formatCurrency,
+    required this.timeDateLabel,
+    required this.monthLabel,
   });
 
   final DashboardProvider dashboard;
   final _TransferFilter selectedFilter;
   final ValueChanged<_TransferFilter> onFilterChange;
   final String Function(double value, {bool showSign}) formatCurrency;
-
-  List<_TransferRecord> _records() {
-    return const [
-      _TransferRecord(
-        title: 'Salary',
-        timeDateLabel: '18:27 - April 30',
-        cadence: 'Monthly',
-        amount: 4000,
-        isExpense: false,
-        monthLabel: 'April',
-        icon: Icons.layers_outlined,
-      ),
-      _TransferRecord(
-        title: 'Groceries',
-        timeDateLabel: '17:00 - April 24',
-        cadence: 'Pantry',
-        amount: 100,
-        isExpense: true,
-        monthLabel: 'April',
-        icon: Icons.shopping_basket_outlined,
-      ),
-      _TransferRecord(
-        title: 'Rent',
-        timeDateLabel: '8:30 - April 15',
-        cadence: 'Rent',
-        amount: 674.40,
-        isExpense: true,
-        monthLabel: 'April',
-        icon: Icons.volunteer_activism_outlined,
-      ),
-      _TransferRecord(
-        title: 'Transport',
-        timeDateLabel: '7:30 - April 08',
-        cadence: 'Fuel',
-        amount: 4.13,
-        isExpense: true,
-        monthLabel: 'April',
-        icon: Icons.local_taxi_outlined,
-      ),
-      _TransferRecord(
-        title: 'Others',
-        timeDateLabel: '9:30 - April 12',
-        cadence: 'Payments',
-        amount: 120,
-        isExpense: false,
-        monthLabel: 'April',
-        icon: Icons.layers_outlined,
-      ),
-      _TransferRecord(
-        title: 'Food',
-        timeDateLabel: '19:30 - March 31',
-        cadence: 'Dinner',
-        amount: 70.40,
-        isExpense: true,
-        monthLabel: 'March',
-        icon: Icons.restaurant_outlined,
-      ),
-      _TransferRecord(
-        title: 'Others',
-        timeDateLabel: '9:30 - March 12',
-        cadence: 'Upwork',
-        amount: 340,
-        isExpense: false,
-        monthLabel: 'March',
-        icon: Icons.layers_outlined,
-      ),
-      _TransferRecord(
-        title: 'Others',
-        timeDateLabel: '10:30 - February 28',
-        cadence: 'Upwork',
-        amount: 340,
-        isExpense: false,
-        monthLabel: 'February',
-        icon: Icons.layers_outlined,
-      ),
-    ];
-  }
+  final String Function(DateTime date) timeDateLabel;
+  final String Function(DateTime date) monthLabel;
 
   List<_TransferRecord> _filterRecords(
     List<_TransferRecord> items,
@@ -820,16 +811,7 @@ class _DashboardTransferTab extends StatelessWidget {
   ) {
     switch (filter) {
       case _TransferFilter.all:
-        return items
-            .where(
-              (item) =>
-                  item.title == 'Salary' ||
-                  item.title == 'Groceries' ||
-                  item.title == 'Rent' ||
-                  item.title == 'Transport' ||
-                  item.title == 'Food',
-            )
-            .toList();
+        return items;
       case _TransferFilter.income:
         return items.where((item) => !item.isExpense).toList();
       case _TransferFilter.expense:
@@ -839,9 +821,38 @@ class _DashboardTransferTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final allRecords = _records();
+    final allRecords = dashboard.items
+        .map(
+          (item) => _TransferRecord.fromItem(
+            item,
+            timeDateLabel: timeDateLabel,
+            monthLabel: monthLabel,
+            transactionIcon: (title) {
+              final key = title.toLowerCase();
+              if (key.contains('salary')) {
+                return Icons.account_balance_wallet_rounded;
+              }
+              if (key.contains('grocer')) {
+                return Icons.shopping_basket_rounded;
+              }
+              if (key.contains('rent')) {
+                return Icons.home_work_outlined;
+              }
+              return Icons.receipt_long_outlined;
+            },
+          ),
+        )
+        .toList();
     final filtered = _filterRecords(allRecords, selectedFilter);
-    const monthOrder = ['April', 'March', 'February'];
+    final monthOrder = <String, DateTime>{};
+    for (final record in filtered) {
+      final current = monthOrder[record.monthLabel];
+      if (current == null || record.date.isAfter(current)) {
+        monthOrder[record.monthLabel] = record.date;
+      }
+    }
+    final sortedMonths = monthOrder.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
@@ -960,14 +971,23 @@ class _DashboardTransferTab extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
               child: Column(
                 children: [
-                  for (
-                    var monthIndex = 0;
-                    monthIndex < monthOrder.length;
-                    monthIndex++
-                  ) ...[
+                  if (filtered.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Text(
+                        'No transactions yet. Add income or expenses to sync data here.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  for (var monthIndex = 0; monthIndex < sortedMonths.length; monthIndex++) ...[
                     Builder(
                       builder: (context) {
-                        final month = monthOrder[monthIndex];
+                        final month = sortedMonths[monthIndex].key;
                         final monthItems = filtered
                             .where((item) => item.monthLabel == month)
                             .toList();
@@ -1224,6 +1244,7 @@ class _CategoryExpenseEntry {
     required this.amount,
     required this.monthLabel,
     required this.icon,
+    required this.date,
   });
 
   final String title;
@@ -1232,6 +1253,44 @@ class _CategoryExpenseEntry {
   final double amount;
   final String monthLabel;
   final IconData icon;
+  final DateTime date;
+
+  factory _CategoryExpenseEntry.fromItem(
+    ExpenseItem item, {
+    required String Function(DateTime date) timeDateLabel,
+    required String Function(DateTime date) monthLabel,
+  }) {
+    return _CategoryExpenseEntry(
+      title: item.title,
+      timeDateLabel: timeDateLabel(item.date),
+      cadence: item.category,
+      amount: item.amount,
+      monthLabel: monthLabel(item.date),
+      icon: _iconForCategory(item.category),
+      date: item.date,
+    );
+  }
+}
+
+IconData _iconForCategory(String category) {
+  switch (category.toLowerCase()) {
+    case 'food':
+      return Icons.restaurant_outlined;
+    case 'transport':
+      return Icons.local_taxi_outlined;
+    case 'medicine':
+      return Icons.medication_outlined;
+    case 'groceries':
+      return Icons.shopping_basket_outlined;
+    case 'rent':
+      return Icons.house_outlined;
+    case 'gifts':
+      return Icons.card_giftcard_outlined;
+    case 'snacks':
+      return Icons.receipt_long_outlined;
+    default:
+      return Icons.sell_outlined;
+  }
 }
 
 class _DashboardCategoriesTab extends StatelessWidget {
@@ -1244,6 +1303,8 @@ class _DashboardCategoriesTab extends StatelessWidget {
     required this.onBackTap,
     required this.onSaveExpense,
     required this.formatCurrency,
+    required this.timeDateLabel,
+    required this.monthLabel,
   });
 
   final DashboardProvider dashboard;
@@ -1252,164 +1313,46 @@ class _DashboardCategoriesTab extends StatelessWidget {
   final ValueChanged<String> onCategoryTap;
   final VoidCallback onAddExpenseTap;
   final VoidCallback onBackTap;
-  final VoidCallback onSaveExpense;
+  final Future<void> Function(
+    String title,
+    String category,
+    double amount,
+    DateTime date,
+    String? notes,
+  ) onSaveExpense;
   final String Function(double value, {bool showSign}) formatCurrency;
+  final String Function(DateTime date) timeDateLabel;
+  final String Function(DateTime date) monthLabel;
 
   List<_CategoryCardModel> _categoryCards() {
     return const [
       _CategoryCardModel(name: 'Food', icon: Icons.restaurant_outlined),
       _CategoryCardModel(name: 'Transport', icon: Icons.local_taxi_outlined),
       _CategoryCardModel(name: 'Medicine', icon: Icons.medication_outlined),
-      _CategoryCardModel(
-        name: 'Groceries',
-        icon: Icons.shopping_basket_outlined,
-      ),
+      _CategoryCardModel(name: 'Groceries', icon: Icons.shopping_basket_outlined),
       _CategoryCardModel(name: 'Rent', icon: Icons.house_outlined),
       _CategoryCardModel(name: 'Gifts', icon: Icons.card_giftcard_outlined),
       _CategoryCardModel(name: 'Snacks', icon: Icons.receipt_long_outlined),
       _CategoryCardModel(name: 'Others', icon: Icons.sell_outlined),
-      _CategoryCardModel(
-        name: 'Add Expense',
-        icon: Icons.add_rounded,
-        isAddAction: true,
-      ),
+      _CategoryCardModel(name: 'Add Expense', icon: Icons.add_rounded, isAddAction: true),
     ];
   }
 
-  Map<String, List<_CategoryExpenseEntry>> _entriesByCategory() {
-    return const {
-      'Food': [
-        _CategoryExpenseEntry(
-          title: 'Dinner',
-          timeDateLabel: '9:31 - April 30',
-          cadence: 'Meal',
-          amount: 50,
-          monthLabel: 'April',
-          icon: Icons.restaurant_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Delivery Fee',
-          timeDateLabel: '8:20 - April 24',
-          cadence: 'Service',
-          amount: 15.32,
-          monthLabel: 'April',
-          icon: Icons.delivery_dining_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Lunch',
-          timeDateLabel: '11:20 - April 15',
-          cadence: 'Meal',
-          amount: 15.40,
-          monthLabel: 'April',
-          icon: Icons.lunch_dining_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Brunch',
-          timeDateLabel: '11:00 - April 08',
-          cadence: 'Meal',
-          amount: 23,
-          monthLabel: 'April',
-          icon: Icons.fastfood_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Dinner',
-          timeDateLabel: '19:30 - March 31',
-          cadence: 'Meal',
-          amount: 87.20,
-          monthLabel: 'March',
-          icon: Icons.restaurant_outlined,
-        ),
-      ],
-      'Transport': [
-        _CategoryExpenseEntry(
-          title: 'Fuel',
-          timeDateLabel: '7:30 - April 30',
-          cadence: 'Fuel',
-          amount: 25.30,
-          monthLabel: 'April',
-          icon: Icons.local_gas_station_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Car Parts',
-          timeDateLabel: '9:15 - April 24',
-          cadence: 'Parts',
-          amount: 120.31,
-          monthLabel: 'April',
-          icon: Icons.car_repair_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Fuel',
-          timeDateLabel: '7:30 - April 15',
-          cadence: 'Fuel',
-          amount: 87.15,
-          monthLabel: 'April',
-          icon: Icons.local_gas_station_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Car Wash',
-          timeDateLabel: '6:30 - March 30',
-          cadence: 'Service',
-          amount: 11.14,
-          monthLabel: 'March',
-          icon: Icons.local_car_wash_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Public Transport',
-          timeDateLabel: '7:15 - March 20',
-          cadence: 'Ride',
-          amount: 12.34,
-          monthLabel: 'March',
-          icon: Icons.directions_bus_outlined,
-        ),
-      ],
-      'Groceries': [
-        _CategoryExpenseEntry(
-          title: 'Pantry',
-          timeDateLabel: '8:17 - April 30',
-          cadence: 'Pantry',
-          amount: 133.30,
-          monthLabel: 'April',
-          icon: Icons.shopping_basket_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Snacks',
-          timeDateLabel: '9:37 - April 24',
-          cadence: 'Snacks',
-          amount: 133.31,
-          monthLabel: 'April',
-          icon: Icons.cookie_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Canned Food',
-          timeDateLabel: '7:50 - April 15',
-          cadence: 'Canned',
-          amount: 93.82,
-          monthLabel: 'April',
-          icon: Icons.ramen_dining_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Veggies',
-          timeDateLabel: '6:30 - March 30',
-          cadence: 'Veggies',
-          amount: 147.43,
-          monthLabel: 'March',
-          icon: Icons.eco_outlined,
-        ),
-        _CategoryExpenseEntry(
-          title: 'Groceries',
-          timeDateLabel: '9:20 - March 20',
-          cadence: 'Groceries',
-          amount: 91.25,
-          monthLabel: 'March',
-          icon: Icons.shopping_cart_outlined,
-        ),
-      ],
-    };
+  List<_CategoryExpenseEntry> _entriesByCategory() {
+    return dashboard
+        .expenseItemsForCategory(selectedCategoryName)
+        .map(
+          (item) => _CategoryExpenseEntry.fromItem(
+            item,
+            timeDateLabel: timeDateLabel,
+            monthLabel: monthLabel,
+          ),
+        )
+        .toList();
   }
 
   List<_CategoryExpenseEntry> _entriesForSelectedCategory() {
-    final entries = _entriesByCategory();
-    return entries[selectedCategoryName] ?? entries['Food']!;
+    return _entriesByCategory();
   }
 
   String _titleForCurrentFlow() {
@@ -1452,9 +1395,7 @@ class _DashboardCategoriesTab extends StatelessWidget {
                   Row(
                     children: [
                       InkWell(
-                        onTap: flowMode == _CategoryFlowMode.overview
-                            ? null
-                            : onBackTap,
+                        onTap: flowMode == _CategoryFlowMode.overview ? null : onBackTap,
                         borderRadius: BorderRadius.circular(999),
                         child: Icon(
                           Icons.arrow_back_ios_new_rounded,
@@ -1475,9 +1416,7 @@ class _DashboardCategoriesTab extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const _CircleActionIcon(
-                        icon: Icons.notifications_none_rounded,
-                      ),
+                      const _CircleActionIcon(icon: Icons.notifications_none_rounded),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1500,10 +1439,7 @@ class _DashboardCategoriesTab extends StatelessWidget {
                           padding: const EdgeInsets.only(left: 14),
                           child: _SummaryMetric(
                             title: 'Total Expense',
-                            value: formatCurrency(
-                              -dashboard.totalExpense,
-                              showSign: true,
-                            ),
+                            value: formatCurrency(-dashboard.totalExpense, showSign: true),
                             valueColor: const Color(0xFF176BFF),
                             alignEnd: true,
                           ),
@@ -1516,11 +1452,7 @@ class _DashboardCategoriesTab extends StatelessWidget {
                   const SizedBox(height: 7),
                   const Row(
                     children: [
-                      Icon(
-                        Icons.check_box_outlined,
-                        size: 15,
-                        color: AppColors.textPrimary,
-                      ),
+                      Icon(Icons.check_box_outlined, size: 15, color: AppColors.textPrimary),
                       SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -1655,18 +1587,34 @@ class _CategoryListContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const monthOrder = ['April', 'March', 'February'];
+    final monthOrder = <String, DateTime>{};
+    for (final item in entries) {
+      final current = monthOrder[item.monthLabel];
+      if (current == null || item.date.isAfter(current)) {
+        monthOrder[item.monthLabel] = item.date;
+      }
+    }
+    final sortedMonths = monthOrder.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
     return Column(
       children: [
-        for (
-          var monthIndex = 0;
-          monthIndex < monthOrder.length;
-          monthIndex++
-        ) ...[
+        if (entries.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 18),
+            child: Text(
+              'No expenses in this category yet.',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        for (var monthIndex = 0; monthIndex < sortedMonths.length; monthIndex++) ...[
           Builder(
             builder: (context) {
-              final month = monthOrder[monthIndex];
+              final month = sortedMonths[monthIndex].key;
               final monthItems = entries
                   .where((item) => item.monthLabel == month)
                   .toList();
@@ -1746,7 +1694,7 @@ class _CategoryListContent extends StatelessWidget {
   }
 }
 
-class _CategoryAddExpenseContent extends StatelessWidget {
+class _CategoryAddExpenseContent extends StatefulWidget {
   const _CategoryAddExpenseContent({
     required this.selectedCategory,
     required this.defaultTitle,
@@ -1755,32 +1703,120 @@ class _CategoryAddExpenseContent extends StatelessWidget {
 
   final String selectedCategory;
   final String defaultTitle;
-  final VoidCallback onSaveExpense;
+  final Future<void> Function(
+    String title,
+    String category,
+    double amount,
+    DateTime date,
+    String? notes,
+  ) onSaveExpense;
+
+  @override
+  State<_CategoryAddExpenseContent> createState() => _CategoryAddExpenseContentState();
+}
+
+class _CategoryAddExpenseContentState extends State<_CategoryAddExpenseContent> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _amountController;
+  late final TextEditingController _notesController;
+  late final DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.defaultTitle);
+    _amountController = TextEditingController(text: '15.32');
+    _notesController = TextEditingController();
+    _selectedDate = DateTime.now();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _amountController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final amount = double.tryParse(_amountController.text.trim());
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid amount')),
+      );
+      return;
+    }
+
+    await widget.onSaveExpense(
+      _titleController.text.trim().isEmpty ? widget.defaultTitle : _titleController.text.trim(),
+      widget.selectedCategory,
+      amount,
+      _selectedDate,
+      _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Expense saved successfully')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final dateLabel = MaterialLocalizations.of(context).formatMediumDate(_selectedDate);
+
     return Column(
       children: [
         _CategoryFormField(
           label: 'Date',
-          value: 'March 3, 2023',
+          value: dateLabel,
           trailingIcon: Icons.calendar_month_outlined,
         ),
         const SizedBox(height: 10),
         _CategoryFormField(
           label: 'Category',
-          value: selectedCategory,
+          value: widget.selectedCategory,
           trailingIcon: Icons.keyboard_arrow_down_rounded,
         ),
         const SizedBox(height: 10),
-        const _CategoryFormField(label: 'Amount', value: '15.32'),
+        TextField(
+          controller: _amountController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Amount',
+            filled: true,
+            fillColor: AppColors.mintInput,
+            border: OutlineInputBorder(borderSide: BorderSide.none),
+          ),
+        ),
         const SizedBox(height: 10),
-        _CategoryFormField(label: 'Expense Title', value: defaultTitle),
+        TextField(
+          controller: _titleController,
+          decoration: const InputDecoration(
+            labelText: 'Expense Title',
+            filled: true,
+            fillColor: AppColors.mintInput,
+            border: OutlineInputBorder(borderSide: BorderSide.none),
+          ),
+        ),
         const SizedBox(height: 10),
-        const _CategoryMessageField(hintText: 'Error Message'),
+        TextField(
+          controller: _notesController,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Optional Notes',
+            hintText: 'Add notes...',
+            filled: true,
+            fillColor: AppColors.mintInput,
+            border: OutlineInputBorder(borderSide: BorderSide.none),
+          ),
+        ),
         const SizedBox(height: 12),
         ElevatedButton(
-          onPressed: onSaveExpense,
+          onPressed: _save,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryMint,
             foregroundColor: AppColors.textPrimary,
